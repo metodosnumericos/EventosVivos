@@ -64,6 +64,27 @@ public class ConfirmPaymentUseCaseTests
     }
 
     [Fact]
+    public async Task Execute_Retries_WhenSaveThrowsDuplicateCode_FromDb()
+    {
+        var now = DateTimeOffset.UtcNow;
+        _time.UtcNow.Returns(now);
+        var first = Reservation.Create(1, 2, "Juan", "juan@example.com", now.AddHours(-2));
+        var reloaded = Reservation.Create(1, 2, "Juan", "juan@example.com", now.AddHours(-2));
+        // First GetByIdAsync returns the original; after Detach+reload it returns a fresh copy
+        _reservations.GetByIdAsync(1, default).Returns(first, reloaded);
+        _reservations.CodeExistsAsync(Arg.Any<string>(), default).Returns(false);
+        // First save raises DB-level unique constraint violation; second succeeds
+        _uow.SaveChangesAsync(default).Returns(
+            Task.FromException<int>(new DuplicateReservationCodeException()),
+            Task.FromResult(1));
+
+        var result = await CreateUseCase().ExecuteAsync(1);
+
+        Assert.Equal(ReservationState.Confirmed, result.State);
+        Assert.NotNull(result.ReservationCode);
+    }
+
+    [Fact]
     public async Task Execute_Throws_WhenNotFound()
     {
         var now = DateTimeOffset.UtcNow;

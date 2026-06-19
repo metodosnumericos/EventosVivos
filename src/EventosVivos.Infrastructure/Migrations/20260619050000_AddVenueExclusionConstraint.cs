@@ -18,6 +18,8 @@ public partial class AddVenueExclusionConstraint : Migration
         // Prevents two Active events from sharing the same venue with overlapping time ranges.
         // This makes the overlap check atomic at the database level, eliminating the TOCTOU
         // race between HasActiveOverlapAsync and the INSERT in CreateEventUseCase.
+        // NOTE: if existing data already contains overlapping active events, this migration
+        // will fail. Remediate by cancelling or adjusting conflicting rows before upgrading.
         migrationBuilder.Sql("""
             ALTER TABLE events
             ADD CONSTRAINT events_venue_no_active_overlap

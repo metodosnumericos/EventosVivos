@@ -121,6 +121,33 @@ public class EventApiTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task ConcurrentEventCreation_SameVenueOverlap_OnlyOneSucceeds()
+    {
+        // All requests target the same venue and the same time range — the exclusion constraint
+        // on PostgreSQL must ensure exactly one succeeds even under concurrent writes.
+        var startsAt = DateTimeOffset.UtcNow.AddDays(60);
+        var req = new CreateEventRequest(
+            "Concurrent Overlap",
+            "Testing concurrent venue overlap rejection.",
+            1,
+            50,
+            startsAt,
+            startsAt.AddHours(2),
+            30m,
+            EventType.Conferencia);
+
+        var tasks = Enumerable.Range(0, 5)
+            .Select(_ => _fixture.CreateAdminClient().PostAsJsonAsync("/api/events", req));
+        var responses = await Task.WhenAll(tasks);
+
+        var successCount = responses.Count(r => r.StatusCode == HttpStatusCode.Created);
+        var conflictCount = responses.Count(r => r.StatusCode == HttpStatusCode.Conflict);
+
+        Assert.Equal(1, successCount);
+        Assert.Equal(4, conflictCount);
+    }
+
+    [Fact]
     public async Task GetOccupancyReport_Returns200_ForExistingEvent()
     {
         var admin = _fixture.CreateAdminClient();

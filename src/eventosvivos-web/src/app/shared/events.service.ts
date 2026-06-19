@@ -19,9 +19,7 @@ export class EventsService {
   }
 
   createEvent(req: CreateEventRequest): Observable<EventModel> {
-    return this.http.post<EventModel>(this.base, req, {
-      headers: { 'X-Admin-Key': environment.adminKey }
-    });
+    return this.http.post<EventModel>(this.base, req);
   }
 
   getOccupancyReport(eventId: number): Observable<OccupancyReport> {

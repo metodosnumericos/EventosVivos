@@ -191,6 +191,24 @@ public class ReservationApiTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task ListReservations_WithoutEventId_Returns200_WithReservations()
+    {
+        var ev = await CreateTestEvent();
+        var client = _fixture.CreateClient();
+        var admin = _fixture.CreateAdminClient();
+
+        await client.PostAsJsonAsync("/api/reservations",
+            new CreateReservationRequest(ev.Id, 1, "Juan", "listall@test.com"));
+
+        // No eventId query param — FR-040: filter should be optional
+        var resp = await admin.GetAsync("/api/reservations");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var list = await resp.Content.ReadFromJsonAsync<ReservationResponse[]>();
+        Assert.NotNull(list);
+        Assert.True(list.Length >= 1);
+    }
+
+    [Fact]
     public async Task ConfirmPayment_Returns404_ForNonExistentReservation()
     {
         var admin = _fixture.CreateAdminClient();

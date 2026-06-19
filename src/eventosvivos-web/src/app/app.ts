@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { AdminAuthService } from './shared/admin-auth.service';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +31,21 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
             Cancelar reserva
           </a>
         </nav>
+
+        <div class="admin-key-slot">
+          <label class="admin-key-label" for="adminKeyInput">Admin key</label>
+          <input
+            id="adminKeyInput"
+            type="password"
+            class="admin-key-input"
+            [class.set]="auth.key()"
+            placeholder="Ingresa la admin key"
+            [value]="auth.key()"
+            (change)="auth.setKey($any($event.target).value)"
+            autocomplete="current-password"
+            aria-label="Clave de administrador"
+          />
+        </div>
       </header>
 
       <main class="content-shell">
@@ -157,6 +173,43 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
       padding: 34px 0 48px;
     }
 
+    .admin-key-slot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .admin-key-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    .admin-key-input {
+      width: 160px;
+      height: 36px;
+      padding: 0 10px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      background: #f8fafc;
+      color: #334155;
+      outline: none;
+      transition: border-color 160ms;
+    }
+
+    .admin-key-input:focus {
+      border-color: #0f766e;
+      background: #fff;
+    }
+
+    .admin-key-input.set {
+      border-color: #0f766e;
+      background: #f0fdf4;
+    }
+
     @media (max-width: 760px) {
       .topbar {
         position: static;
@@ -173,6 +226,15 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
         flex: 1 1 100%;
       }
 
+      .admin-key-slot {
+        width: 100%;
+      }
+
+      .admin-key-input {
+        flex: 1;
+        width: auto;
+      }
+
       .content-shell {
         width: min(100% - 24px, 1180px);
         padding-top: 22px;
@@ -180,4 +242,6 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
     }
   `]
 })
-export class App {}
+export class App {
+  readonly auth = inject(AdminAuthService);
+}
