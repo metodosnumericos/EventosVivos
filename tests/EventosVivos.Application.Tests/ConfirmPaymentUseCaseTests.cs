@@ -46,6 +46,24 @@ public class ConfirmPaymentUseCaseTests
     }
 
     [Fact]
+    public async Task Execute_Retries_OnCodeCollision_AndSucceeds()
+    {
+        var now = DateTimeOffset.UtcNow;
+        _time.UtcNow.Returns(now);
+        var res = Reservation.Create(1, 2, "Juan", "juan@example.com", now.AddHours(-1));
+        _reservations.GetByIdAsync(1, default).Returns(res);
+        // First two generated codes already exist; third is unique
+        _reservations.CodeExistsAsync(Arg.Any<string>(), default).Returns(true, true, false);
+        _uow.SaveChangesAsync(default).Returns(1);
+
+        var result = await CreateUseCase().ExecuteAsync(1);
+
+        Assert.Equal(ReservationState.Confirmed, result.State);
+        Assert.NotNull(result.ReservationCode);
+        Assert.StartsWith("EV-", result.ReservationCode);
+    }
+
+    [Fact]
     public async Task Execute_Throws_WhenNotFound()
     {
         var now = DateTimeOffset.UtcNow;

@@ -118,6 +118,23 @@ public class CreateReservationUseCaseTests
     }
 
     [Fact]
+    public async Task Execute_Succeeds_WhenReservingExactlyLastSeat()
+    {
+        var now = DateTimeOffset.UtcNow;
+        _time.UtcNow.Returns(now);
+        var ev = CreateFutureEvent(startsAt: now.AddDays(7), maxCapacity: 5);
+        _events.GetByIdAsync(1, default).Returns(ev);
+        _reservations.GetHeldCapacityAsync(1, default).Returns(4); // 4 of 5 held, 1 remaining
+        _uow.SaveChangesAsync(default).Returns(1);
+
+        var cmd = new CreateReservationCommand(1, 1, "Juan", "juan@example.com");
+        var result = await CreateUseCase().ExecuteAsync(cmd);
+
+        Assert.Equal(ReservationState.PendingPayment, result.State);
+        Assert.Equal(1, result.Quantity);
+    }
+
+    [Fact]
     public async Task Execute_Throws_WhenEventNotFound()
     {
         var now = DateTimeOffset.UtcNow;

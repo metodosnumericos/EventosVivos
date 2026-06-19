@@ -79,6 +79,20 @@ public class EventTests
     }
 
     [Fact]
+    public void Create_Throws_WeekendCutoffException_For_Sunday_After_22()
+    {
+        var sunday = GetNextWeekday(DayOfWeek.Sunday);
+        var localDateTime = new DateTime(sunday.Year, sunday.Month, sunday.Day, 22, 30, 0);
+        var bogotaOffset = BogotaTz.GetUtcOffset(localDateTime);
+        var bogotaStartsAt22h30 = new DateTimeOffset(localDateTime, bogotaOffset);
+        var now = bogotaStartsAt22h30.AddDays(-10);
+
+        Assert.Throws<WeekendCutoffException>(() =>
+            Event.Create("Sunday Late Show", "Test description long enough", 1, 200, 50,
+                bogotaStartsAt22h30, bogotaStartsAt22h30.AddHours(3), 10m, EventType.Concierto, now));
+    }
+
+    [Fact]
     public void Create_Throws_WhenCapacityOrPriceIsNotPositive()
     {
         var now = DateTimeOffset.UtcNow;

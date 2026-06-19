@@ -168,4 +168,41 @@ public class ReservationApiTests : IClassFixture<ApiFixture>
 
         Assert.Equal(HttpStatusCode.NoContent, cancelResp.StatusCode);
     }
+
+    [Fact]
+    public async Task BuyerCancel_Confirmed_Returns204_WithCode()
+    {
+        var ev = await CreateTestEvent();
+        var client = _fixture.CreateClient();
+        var admin = _fixture.CreateAdminClient();
+
+        var resResp = await client.PostAsJsonAsync("/api/reservations",
+            new CreateReservationRequest(ev.Id, 1, "Juan", "buyer2@test.com"));
+        var res = await resResp.Content.ReadFromJsonAsync<ReservationResponse>();
+
+        var confirmResp = await admin.PostAsync($"/api/reservations/{res!.Id}/confirm", null);
+        var confirmed = await confirmResp.Content.ReadFromJsonAsync<ReservationResponse>();
+
+        var cancelResp = await client.PostAsJsonAsync(
+            $"/api/reservations/{confirmed!.Id}/buyer-cancel",
+            new BuyerCancelRequest("buyer2@test.com", confirmed.ReservationCode));
+
+        Assert.Equal(HttpStatusCode.NoContent, cancelResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConfirmPayment_Returns404_ForNonExistentReservation()
+    {
+        var admin = _fixture.CreateAdminClient();
+        var resp = await admin.PostAsync("/api/reservations/99999/confirm", null);
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminCancel_Returns404_ForNonExistentReservation()
+    {
+        var admin = _fixture.CreateAdminClient();
+        var resp = await admin.PostAsync("/api/reservations/99999/cancel", null);
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
 }
