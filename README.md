@@ -132,7 +132,7 @@ Los timestamps se almacenan como instantes UTC. Todas las reglas de negocio que 
 
 ## Seguridad
 
-- **Admin API Key**: Los endpoints de creación de eventos, listado de reservas, confirmación de pago y cancelación administrativa requieren el header `X-Admin-Key`. En desarrollo el valor es `dev-admin-key` (configurable via `appsettings.json` o variable de entorno `AdminApiKey`). **Limitación conocida**: el valor de la key se incluye en el bundle de Angular (`environment.ts`), por lo que es visible en el navegador. Esta es una frontera de seguridad de demo local, no un mecanismo de autenticación real. Ver "Mejoras de producción" para la solución.
+- **Admin API Key**: Los endpoints de creación de eventos, listado de reservas, confirmación de pago y cancelación administrativa requieren el header `X-Admin-Key`. En desarrollo el valor es `dev-admin-key` (configurable via `appsettings.json` o variable de entorno `AdminApiKey`). La clave **no se incluye en el bundle de Angular**: el campo de entrada en el header de la SPA escribe el valor en `sessionStorage` (via `AdminAuthService`), y un `HttpInterceptorFn` lo inyecta en todas las peticiones a rutas admin en tiempo de ejecución. La clave desaparece al cerrar la pestaña.
 - **Buyer cancellation**: Los compradores pueden cancelar usando `id + buyerEmail` (reserva pendiente) o `id + buyerEmail + reservationCode` (reserva confirmada) — sin credenciales de admin.
 - **CORS**: Restringido al origin de Angular configurado en `AllowedOrigin`.
 - **ProblemDetails**: Los errores devuelven RFC 9457 `ProblemDetails` sin stack traces ni detalles internos.
@@ -155,8 +155,55 @@ Las reservas pendientes retienen capacidad en el MVP para prevenir sobreventa. U
 
 - **Expiración automática**: timestamp de expiración en la reserva + job de liberación periódica.
 - **HTTPS obligatorio**: redirección HTTP → HTTPS en deployment.
-- **Autenticación completa**: reemplazar la API Key de demo (visible en el bundle Angular) con JWT/Bearer Token — gestión de roles (admin/comprador) con registro de usuarios y tokens de corta duración.
+- **Autenticación completa**: reemplazar la API Key de demo con JWT/Bearer Token — gestión de roles (admin/comprador) con registro de usuarios y tokens de corta duración.
 - **Rate limiting**: protección contra abuso de la API pública de reservas.
+
+---
+
+## Decisiones de arquitectura
+
+### 1. Restricción de exclusión PostgreSQL para solapamiento de venue
+
+**Problema**: `HasActiveOverlapAsync` + `INSERT` no son atómicos — con dos transacciones concurrentes ambas pasan la consulta y luego ambas insertan, creando un solapamiento de venue silencioso.
+
+**Alternativas consideradas**:
+- Transacciones serializables: requieren reintentos en toda la capa de aplicación y degradan throughput.
+- `SELECT FOR UPDATE` con lock por venue: bloqueo pesimista que serializa todas las creaciones de eventos, no solo las del mismo venue.
+- Advisory locks de PostgreSQL: lock explícito por venue_id, pero requiere gestión manual y no escala bien.
+
+**Decisión**: restricción de exclusión `EXCLUDE USING gist` sobre `(venue_id, tstzrange(starts_at, ends_at)) WHERE (state = 'Active')`. PostgreSQL garantiza la atomicidad a nivel de constraint, sin necesidad de serializar transacciones ajenas. El `UnitOfWork` captura `SqlState 23P01` y lo traduce a `VenueConflictException` → 409.
+
+---
+
+### 2. UnitOfWork como traductor de excepciones de infraestructura
+
+**Decisión**: `UnitOfWork.SaveChangesAsync` captura `DbUpdateException` y las convierte en excepciones de dominio antes de propagarlas (`VenueConflictException`, `DuplicateReservationCodeException`, `OptimisticConcurrencyException`). Los casos de uso sólo ven excepciones de dominio; nunca manejan `PostgresException` ni `DbUpdateException`.
+
+**Por qué**: mantiene los casos de uso limpios de conocimiento de la capa de persistencia. Si se cambia el proveedor de base de datos, sólo cambia el `UnitOfWork`; la lógica de aplicación no toca.
+
+---
+
+### 3. Concurrencia optimista con token de versión explícito
+
+**Decisión**: `Event.Version` es un entero que el dominio incrementa manualmente (no via `[ConcurrencyToken]` de EF). `UnitOfWork` lo expone como token de concurrencia en la configuración de EF, de forma que una escritura concurrente genera `DbUpdateConcurrencyException`. `CreateReservationUseCase` reintenta hasta 3 veces recargando el agregado fresco.
+
+**Detalle de implementación**: después de un fallo optimista, el agregado anterior debe desconectarse del identity map de EF antes de recargar. Si no, `GetByIdAsync` devuelve la entidad stale del tracker en lugar de la fila actual de la BD. Por eso `IUnitOfWork` expone `Detach<T>` — para que el caso de uso pueda limpiar el tracker sin acceder directamente al `DbContext`.
+
+---
+
+### 4. Estado derivado vs. estado almacenado para "Completado"
+
+**Decisión**: `Event.GetEffectiveState()` computa el estado derivado en memoria en lugar de persistir una columna `state` que deba actualizarse periódicamente.
+
+**Por qué**: no requiere job de mantenimiento, no hay inconsistencias de sincronización, y el dominio es la única fuente de verdad. El trade-off (no se puede filtrar por `state = 'Completed'` en SQL de forma directa) es aceptable en el MVP. Una vista materializada o columna computada resuelta en PostgreSQL sería la evolución natural si los filtros por estado completado se vuelven frecuentes.
+
+---
+
+### 5. Código de reserva único con reintentos a nivel de caso de uso
+
+**Decisión**: `ConfirmPaymentUseCase` genera `EV-XXXXXX`, verifica contra `CodeExistsAsync` (pre-check), y si el `UnitOfWork` lanza `DuplicateReservationCodeException` (SqlState 23505 en la constraint unique de `reservation_code`), desconecta la entidad stale, recarga el estado fresco y reintenta con un código nuevo.
+
+**Por qué dos capas de protección**: el pre-check con `CodeExistsAsync` evita roundtrips innecesarios bajo carga normal. La captura del error de BD cubre la race condition residual entre el pre-check y el INSERT, sin necesidad de un lock.
 
 ---
 
@@ -168,7 +215,7 @@ Las reservas pendientes retienen capacidad en el MVP para prevenir sobreventa. U
 | GET | `/api/events` | - | Listar eventos (filtros opcionales) |
 | POST | `/api/events` | Admin | Crear evento |
 | GET | `/api/events/{id}/occupancy` | - | Reporte de ocupación |
-| GET | `/api/reservations?eventId=X` | Admin | Listar reservas por evento |
+| GET | `/api/reservations` | Admin | Listar reservas (filtro opcional `?eventId=X`) |
 | POST | `/api/reservations` | - | Crear reserva |
 | POST | `/api/reservations/{id}/confirm` | Admin | Confirmar pago |
 | POST | `/api/reservations/{id}/cancel` | Admin | Cancelar reserva (admin) |
