@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using EventosVivos.Domain.Shared;
+
 namespace EventosVivos.Domain.Reservations;
 
 public class Reservation
@@ -18,6 +21,21 @@ public class Reservation
 
     public static Reservation Create(int eventId, int quantity, string buyerName, string buyerEmail, DateTimeOffset now)
     {
+        buyerName = buyerName?.Trim() ?? string.Empty;
+        buyerEmail = buyerEmail?.Trim() ?? string.Empty;
+
+        if (eventId < 1)
+            throw new InputValidationException("Event id must be greater than zero.");
+
+        if (quantity < 1)
+            throw new InputValidationException("Reservation quantity must be at least one.");
+
+        if (buyerName.Length is < 1 or > 200)
+            throw new InputValidationException("Buyer name must contain between 1 and 200 characters.");
+
+        if (buyerEmail.Length > 200 || !new EmailAddressAttribute().IsValid(buyerEmail))
+            throw new InputValidationException("Buyer email is invalid.");
+
         return new Reservation
         {
             EventId = eventId,

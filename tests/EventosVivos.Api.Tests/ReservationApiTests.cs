@@ -80,6 +80,21 @@ public class ReservationApiTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task CreateReservation_Returns400_WhenRequestDtoIsInvalid()
+    {
+        var ev = await CreateTestEvent();
+        var client = _fixture.CreateClient();
+
+        var zeroQuantity = await client.PostAsJsonAsync("/api/reservations",
+            new CreateReservationRequest(ev.Id, 0, "Juan", "juan@test.com"));
+        var invalidEmail = await client.PostAsJsonAsync("/api/reservations",
+            new CreateReservationRequest(ev.Id, 1, "Juan", "not-an-email"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, zeroQuantity.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidEmail.StatusCode);
+    }
+
+    [Fact]
     public async Task ConfirmPayment_Returns200_WithReservationCode()
     {
         var ev = await CreateTestEvent();

@@ -78,6 +78,34 @@ public class EventTests
                 now.AddDays(-1), now.AddDays(1), 10m, EventType.Conferencia, now));
     }
 
+    [Fact]
+    public void Create_Throws_WhenCapacityOrPriceIsNotPositive()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Throws<InputValidationException>(() =>
+            Event.Create("Valid event", "Test description long enough", 1, 200, 0,
+                now.AddDays(7), now.AddDays(8), 10m, EventType.Conferencia, now));
+
+        Assert.Throws<InputValidationException>(() =>
+            Event.Create("Valid event", "Test description long enough", 1, 200, 1,
+                now.AddDays(7), now.AddDays(8), 0m, EventType.Conferencia, now));
+    }
+
+    [Fact]
+    public void Create_Throws_WhenTextOrTypeIsInvalid()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Throws<InputValidationException>(() =>
+            Event.Create("Bad", "Test description long enough", 1, 200, 1,
+                now.AddDays(7), now.AddDays(8), 10m, EventType.Conferencia, now));
+
+        Assert.Throws<InputValidationException>(() =>
+            Event.Create("Valid event", "Test description long enough", 1, 200, 1,
+                now.AddDays(7), now.AddDays(8), 10m, (EventType)99, now));
+    }
+
     private static DateTime GetNextWeekday(DayOfWeek day)
     {
         var date = DateTime.Today.AddDays(10);

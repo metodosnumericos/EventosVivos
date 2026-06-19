@@ -1,4 +1,5 @@
 using EventosVivos.Domain.Venues;
+using EventosVivos.Domain.Shared;
 
 namespace EventosVivos.Domain.Events;
 
@@ -36,6 +37,27 @@ public class Event
         EventType type,
         DateTimeOffset now)
     {
+        title = title?.Trim() ?? string.Empty;
+        description = description?.Trim() ?? string.Empty;
+
+        if (title.Length is < 5 or > 100)
+            throw new InputValidationException("Event title must contain between 5 and 100 characters.");
+
+        if (description.Length is < 10 or > 500)
+            throw new InputValidationException("Event description must contain between 10 and 500 characters.");
+
+        if (venueId < 1)
+            throw new InputValidationException("Venue id must be greater than zero.");
+
+        if (maxCapacity < 1)
+            throw new InputValidationException("Event capacity must be greater than zero.");
+
+        if (ticketPrice <= 0)
+            throw new InputValidationException("Ticket price must be greater than zero.");
+
+        if (!Enum.IsDefined(type))
+            throw new InputValidationException("Event type is invalid.");
+
         if (maxCapacity > venueCapacity)
             throw new EventCapacityExceedsVenueException(maxCapacity, venueCapacity);
 

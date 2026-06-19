@@ -70,6 +70,48 @@ public class EventApiTests : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task CreateEvent_Returns400_WhenRequestDtoIsInvalid()
+    {
+        var admin = _fixture.CreateAdminClient();
+        var invalid = ValidEvent() with { Title = "Bad", MaxCapacity = 0 };
+
+        var resp = await admin.PostAsJsonAsync("/api/events", invalid);
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateEvent_Returns400_WhenStartIsInThePast()
+    {
+        var admin = _fixture.CreateAdminClient();
+        var start = DateTimeOffset.UtcNow.AddMinutes(-5);
+
+        var resp = await admin.PostAsJsonAsync("/api/events", ValidEvent(start));
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateEvent_Returns400_WhenEndIsNotAfterStart()
+    {
+        var admin = _fixture.CreateAdminClient();
+        var start = NextStart();
+        var invalid = new CreateEventRequest(
+            "Test Conference",
+            "A valid description for the test event.",
+            1,
+            50,
+            start,
+            start,
+            20m,
+            EventType.Conferencia);
+
+        var resp = await admin.PostAsJsonAsync("/api/events", invalid);
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
     public async Task ListEvents_Returns200_WithFilters()
     {
         var client = _fixture.CreateClient();

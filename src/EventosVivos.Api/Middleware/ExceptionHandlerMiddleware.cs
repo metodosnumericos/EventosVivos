@@ -34,6 +34,7 @@ public class ExceptionHandlerMiddleware
         {
             ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
             BusinessRuleException => (StatusCodes.Status422UnprocessableEntity, "Business Rule Violation"),
+            InputValidationException => (StatusCodes.Status400BadRequest, "Validation Error"),
             NotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
             OptimisticConcurrencyException => (StatusCodes.Status409Conflict, "Conflict"),
             _ => (StatusCodes.Status500InternalServerError, "Internal Server Error")

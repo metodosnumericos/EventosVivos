@@ -18,7 +18,7 @@ public class EventCapacityExceedsVenueException : BusinessRuleException
         : base($"Event capacity {maxCapacity} exceeds venue capacity {venueCapacity}.") { }
 }
 
-public class InvalidEventDateException : BusinessRuleException
+public class InvalidEventDateException : InputValidationException
 {
     public InvalidEventDateException(string message) : base(message) { }
 }

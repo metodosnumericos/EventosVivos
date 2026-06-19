@@ -21,3 +21,9 @@ public class NotFoundException : DomainException
 {
     public NotFoundException(string message) : base(message) { }
 }
+
+// Maps to HTTP 400 Bad Request - malformed or invalid command input.
+public class InputValidationException : DomainException
+{
+    public InputValidationException(string message) : base(message) { }
+}

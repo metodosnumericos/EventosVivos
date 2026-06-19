@@ -19,6 +19,9 @@ builder.Logging.AddDebug();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+// Apply DataAnnotations on Minimal API request DTOs before handlers execute.
+builder.Services.AddValidation();
+
 // Infrastructure (EF Core, repositories, time provider)
 builder.Services.AddInfrastructure(builder.Configuration);
 

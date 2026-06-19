@@ -33,7 +33,8 @@ public static class EventEndpoints
         {
             var cmd = new CreateEventCommand(
                 req.Title, req.Description, req.VenueId, req.MaxCapacity,
-                req.StartsAt, req.EndsAt, req.TicketPrice, req.Type);
+                req.StartsAt, req.EndsAt, req.TicketPrice,
+                req.Type ?? throw new InputValidationException("Event type is required."));
             var ev = await useCase.ExecuteAsync(cmd);
             return Results.Created($"/api/events/{ev.Id}", ToResponse(ev, DateTimeOffset.UtcNow));
         }).RequireAuthorization("AdminPolicy");

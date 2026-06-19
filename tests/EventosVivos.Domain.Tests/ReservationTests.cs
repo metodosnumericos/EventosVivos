@@ -1,4 +1,5 @@
 using EventosVivos.Domain.Reservations;
+using EventosVivos.Domain.Shared;
 
 namespace EventosVivos.Domain.Tests;
 
@@ -96,5 +97,17 @@ public class ReservationTests
 
         // Should not throw
         res.ValidateBuyerOwnership("juan@example.com", "EV-000006");
+    }
+
+    [Fact]
+    public void Create_Throws_WhenQuantityOrBuyerEmailIsInvalid()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Throws<InputValidationException>(() =>
+            Reservation.Create(1, 0, "Juan", "juan@example.com", now));
+
+        Assert.Throws<InputValidationException>(() =>
+            Reservation.Create(1, 1, "Juan", "not-an-email", now));
     }
 }
