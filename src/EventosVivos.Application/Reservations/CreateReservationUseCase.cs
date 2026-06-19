@@ -84,10 +84,12 @@ public class CreateReservationUseCase
             }
             catch (OptimisticConcurrencyException) when (attempt < maxRetries - 1)
             {
-                // Reload and retry with fresh capacity
+                // Detach both entities so the identity map doesn't return stale data on reload.
+                // The zombie reservation must not be re-inserted on the next attempt.
+                _uow.Detach(reservation);
+                _uow.Detach(ev);
                 var freshEvent = await _events.GetByIdAsync(cmd.EventId, ct);
                 if (freshEvent is null) throw new NotFoundException($"Event {cmd.EventId} not found.");
-                // Replace tracked entity reference for next attempt
                 ev = freshEvent;
             }
         }

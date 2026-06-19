@@ -13,7 +13,7 @@ public class ListReservationsUseCase
     }
 
     public async Task<IReadOnlyList<Reservation>> ExecuteAsync(
-        int eventId, ReservationState? state, CancellationToken ct = default)
+        int? eventId, ReservationState? state, CancellationToken ct = default)
     {
         return await _reservations.GetByEventIdAsync(eventId, state, ct);
     }

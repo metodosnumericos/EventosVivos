@@ -10,7 +10,7 @@ public static class ReservationEndpoints
     public static RouteGroupBuilder MapReservationEndpoints(this RouteGroupBuilder group)
     {
         group.MapGet("/", async (
-            [FromQuery] int eventId,
+            [FromQuery] int? eventId,
             [FromQuery] ReservationState? state,
             ListReservationsUseCase useCase) =>
         {

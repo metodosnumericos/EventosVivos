@@ -132,7 +132,7 @@ Los timestamps se almacenan como instantes UTC. Todas las reglas de negocio que 
 
 ## Seguridad
 
-- **Admin API Key**: Los endpoints de creación de eventos, listado de reservas, confirmación de pago y cancelación administrativa requieren el header `X-Admin-Key`. En desarrollo el valor es `dev-admin-key` (configurable via `appsettings.json` o variable de entorno `AdminApiKey`).
+- **Admin API Key**: Los endpoints de creación de eventos, listado de reservas, confirmación de pago y cancelación administrativa requieren el header `X-Admin-Key`. En desarrollo el valor es `dev-admin-key` (configurable via `appsettings.json` o variable de entorno `AdminApiKey`). **Limitación conocida**: el valor de la key se incluye en el bundle de Angular (`environment.ts`), por lo que es visible en el navegador. Esta es una frontera de seguridad de demo local, no un mecanismo de autenticación real. Ver "Mejoras de producción" para la solución.
 - **Buyer cancellation**: Los compradores pueden cancelar usando `id + buyerEmail` (reserva pendiente) o `id + buyerEmail + reservationCode` (reserva confirmada) — sin credenciales de admin.
 - **CORS**: Restringido al origin de Angular configurado en `AllowedOrigin`.
 - **ProblemDetails**: Los errores devuelven RFC 9457 `ProblemDetails` sin stack traces ni detalles internos.
@@ -155,7 +155,7 @@ Las reservas pendientes retienen capacidad en el MVP para prevenir sobreventa. U
 
 - **Expiración automática**: timestamp de expiración en la reserva + job de liberación periódica.
 - **HTTPS obligatorio**: redirección HTTP → HTTPS en deployment.
-- **Autenticación completa**: gestión de roles (admin/comprador) con JWT y registro de usuarios.
+- **Autenticación completa**: reemplazar la API Key de demo (visible en el bundle Angular) con JWT/Bearer Token — gestión de roles (admin/comprador) con registro de usuarios y tokens de corta duración.
 - **Rate limiting**: protección contra abuso de la API pública de reservas.
 
 ---

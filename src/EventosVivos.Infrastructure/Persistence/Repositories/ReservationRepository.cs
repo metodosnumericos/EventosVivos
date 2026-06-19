@@ -17,9 +17,11 @@ public class ReservationRepository : IReservationRepository
         => await _db.Reservations.AddAsync(reservation, ct);
 
     public async Task<IReadOnlyList<Reservation>> GetByEventIdAsync(
-        int eventId, ReservationState? state, CancellationToken ct = default)
+        int? eventId, ReservationState? state, CancellationToken ct = default)
     {
-        var query = _db.Reservations.Where(r => r.EventId == eventId);
+        var query = _db.Reservations.AsQueryable();
+        if (eventId.HasValue)
+            query = query.Where(r => r.EventId == eventId.Value);
         if (state.HasValue)
             query = query.Where(r => r.State == state.Value);
         return await query.OrderByDescending(r => r.CreatedAt).ToListAsync(ct);

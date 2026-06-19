@@ -35,8 +35,21 @@ public class ConfirmPaymentUseCase
                 continue;
 
             reservation.Confirm(code, now);
-            await _uow.SaveChangesAsync(ct);
-            return reservation;
+
+            try
+            {
+                await _uow.SaveChangesAsync(ct);
+                return reservation;
+            }
+            catch (DuplicateReservationCodeException)
+            {
+                // A concurrent confirmation claimed the same code; detach and reload for next attempt.
+                _uow.Detach(reservation);
+                reservation = await _reservations.GetByIdAsync(reservationId, ct)
+                    ?? throw new NotFoundException($"Reservation {reservationId} not found.");
+                if (reservation.State != ReservationState.PendingPayment)
+                    throw new InvalidStateTransitionException(reservation.State, "confirm");
+            }
         }
 
         throw new ConfirmConflictException("Could not generate a unique reservation code. Please retry.");
